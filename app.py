@@ -7,6 +7,9 @@ import datetime
 import time
 import serial
 import ctypes
+import numpy as np
+from sklearn.cluster import KMeans
+import statistics
 
 app = Flask(__name__)
 app.config["MONGO_URI"] = "mongodb://localhost:27017/aeropuerto"
@@ -20,7 +23,6 @@ def sensor():
         "descripcion": request.form["descripcion"],
         "puerto": request.form["puerto"]
     }).inserted_id
-
     return jsonify({"restult": "Sensor create" + str(sensor_id)})
 
 
@@ -31,23 +33,88 @@ def sensorFind():
     })
     return dumps(sensor)
 
+
 @app.route("/api/sensors",  methods=['GET'])
 def sensorFindAll():
     sensors = db.sensores.find({})
     return dumps(sensors)
+
 
 @app.route("/api/sesion",  methods=['GET'])
 def sensioFind():
     sesion = db.sesiones.find_one({
         "_id": ObjectId(request.form["id"])
     })
-    return dumps(sesion)
 
-@app.route("/api/sensors",  methods=['GET'])
-def sensorFindAll():
-    sessions = db.sesione.find({})
-    return dumps(sessions)
+    return dumps({
+        "_id": sesion["_id"],
+        "nombre": sesion["nombre"],
+        "descripcion": sesion["descripcion"],
+        "sensor_id": sesion["sensor_id"],
+        "datos": sesion["datos"],
+        "extras": getExtras(sesion["datos"])
+    })
 
+
+def getExtras(array):
+    hr = 0
+    rr = 0
+    maxhr = 0
+    maxrr = 0
+
+    minhr = array[0]["HR"]
+    minrr = array[0]["RR"]
+
+    auxhr = []
+    auxrr = []
+
+    for x in array:
+        auxhr.append(x["HR"])
+        auxrr.append(x["RR"])
+
+        hr += x["HR"]
+        rr += x["RR"]
+
+        if maxhr < x["HR"]:
+            maxhr = x["HR"]
+
+        if maxrr < x["RR"]:
+            maxrr = x["RR"]
+
+        if minhr > x["HR"]:
+            minhr = x["HR"]
+
+        if minrr > x["RR"]:
+            minrr = x["RR"]
+
+    return {
+        "promedios": {"hr": hr/len(array),
+                      "rr": rr/len(array)},
+        "max": {
+            "hr": maxhr,
+            "rr": maxrr},
+        "min": {
+            "hr": minhr,
+            "rr": minrr},
+        "stdev": {
+            "hr": statistics.stdev(auxhr),
+            "rr": statistics.stdev(auxrr)
+        },
+    }
+
+
+@app.route("/api/sensors/cluster",  methods=['GET'])
+def sensorGetCluster():
+    sesion = db.sesiones.find_one({
+        "_id": ObjectId(request.form["id"])
+    })
+    datos = sesion["datos"]
+    aux = []
+    for d in datos:
+        aux.append([d["HR"], d["RR"]])
+    kmeans = KMeans(n_clusters=2)
+    kmeans.fit(aux)
+    return dumps(kmeans.cluster_centers_)
 
 
 @app.route("/api/begin",  methods=['POST'])
@@ -86,7 +153,8 @@ def beginSessionCapture(sesion_id, port):
         sesion = sesiones.find_one({
             "_id": ObjectId(sesion_id)
         })
-        sesion["datos"].append({"HR": 1000, "RR": 200})
+        sesion["datos"].append(
+            {"HR": 1000, "RR": 200, date: datetime.datetime.now})
         sesiones.update_one({
             "_id": ObjectId(sesion_id)
         }, {

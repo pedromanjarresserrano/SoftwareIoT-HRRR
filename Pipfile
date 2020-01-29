@@ -9,6 +9,8 @@ verify_ssl = true
 pymongo = "*"
 flask = "*"
 pyserial = "*"
+numpy = "*"
+scikit-learn = "*"
 
 [requires]
 python_version = "3.7"
