@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from bson.json_util import dumps
@@ -14,6 +14,12 @@ import statistics
 app = Flask(__name__)
 app.config["MONGO_URI"] = "mongodb://localhost:27017/aeropuerto"
 db = MongoClient('localhost', 27017).aeropuerto
+
+
+@app.route("/",  methods=['GET'])
+def mainRoute():
+
+    return render_template('index.html')
 
 
 @app.route("/api/sensor",  methods=['POST'])
