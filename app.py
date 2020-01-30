@@ -3,7 +3,7 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 from bson.json_util import dumps
 import threading
-import datetime
+from datetime import datetime
 import time
 import serial
 import ctypes
@@ -46,6 +46,11 @@ def sensorFindAll():
     return dumps(sensors)
 
 
+@app.route("/api/sesiones",  methods=['GET'])
+def sesionFindAll():
+    sesiones = db.sesiones.find({})
+    return dumps(sesiones)
+
 @app.route("/api/sesion",  methods=['GET'])
 def sensioFind():
     sesion = db.sesiones.find_one({
@@ -63,6 +68,7 @@ def sensioFind():
 
 
 def getExtras(array):
+    counta = len(array)
     hr = 0
     rr = 0
     maxhr = 0
@@ -74,28 +80,55 @@ def getExtras(array):
     auxhr = []
     auxrr = []
 
-    for x in array:
-        auxhr.append(x["HR"])
-        auxrr.append(x["RR"])
+    count50 = 0
 
-        hr += x["HR"]
-        rr += x["RR"]
+    statusrr = "LOW"
+    statussdrr = "LOW"
+    statusprr50 = "LOW"
 
-        if maxhr < x["HR"]:
-            maxhr = x["HR"]
+    for x in range(counta):
 
-        if maxrr < x["RR"]:
-            maxrr = x["RR"]
+        auxhr.append(array[x]["HR"])
+        auxrr.append(array[x]["RR"])
+        hr += array[x]["HR"]
+        rr += array[x]["RR"]
 
-        if minhr > x["HR"]:
-            minhr = x["HR"]
+        if maxhr < array[x]["HR"]:
+            maxhr = array[x]["HR"]
 
-        if minrr > x["RR"]:
-            minrr = x["RR"]
+        if maxrr < array[x]["RR"]:
+            maxrr = array[x]["RR"]
+
+        if minhr > array[x]["HR"]:
+            minhr = array[x]["HR"]
+
+        if minrr > array[x]["RR"]:
+            minrr = array[x]["RR"]
+
+        if x < counta-1 and (array[x+1]["RR"] - array[x]["RR"]) > 50:
+            count50 += 1
+
+    avghr = hr/counta
+    avgrr = rr/counta
+    prr50 = (count50*100)/(counta-1)
+
+    stdevrr = statistics.stdev(auxrr)
+
+    if avgrr < 750:
+        statusrr = "HIGH"
+
+    if avgrr >= 750 and avgrr <= 900:
+        statusrr = "HIGH"
+
+    if stdevrr < 50:
+        statusrr = "HIGH"
+
+    if stdevrr >= 50 and avgrr <= 100:
+        statusrr = "MODERATE"
 
     return {
-        "promedios": {"hr": hr/len(array),
-                      "rr": rr/len(array)},
+        "promedios": {"hr": avghr,
+                      "rr": avgrr},
         "max": {
             "hr": maxhr,
             "rr": maxrr},
@@ -104,8 +137,14 @@ def getExtras(array):
             "rr": minrr},
         "stdev": {
             "hr": statistics.stdev(auxhr),
-            "rr": statistics.stdev(auxrr)
+            "rr": stdevrr
         },
+        "prr50": prr50,
+        "status": {
+            "avgrr": statusrr,
+            "sdrr": statussdrr,
+            "prr50": statusprr50
+        }
     }
 
 
@@ -147,6 +186,17 @@ def stopSesion():
     for task in Tasking.sesioneslist:
         if task.sesion == sesion_id:
             task.stop()
+            sesion = db.sesiones.find_one({
+                "_id": ObjectId(sesion_id)
+            })
+
+            db.sesiones.update_one({
+                "_id": ObjectId(sesion_id)
+            }, {
+                "$set": {
+                    "extras": getExtras(sesion["datos"])
+                }
+            })
 
     return jsonify({"session_id": str(sesion_id)})
 
@@ -155,12 +205,12 @@ def beginSessionCapture(sesion_id, port):
     # ser = serial.Serial(port, 9600)
     sesiones = db.sesiones
     while True:
-        print("READING" + str(port))
+        print("READING " + str(port))
         sesion = sesiones.find_one({
             "_id": ObjectId(sesion_id)
         })
         sesion["datos"].append(
-            {"HR": 1000, "RR": 200, date: datetime.datetime.now})
+            {"HR": 1000, "RR": 200, "date": datetime.timestamp(datetime.now())})
         sesiones.update_one({
             "_id": ObjectId(sesion_id)
         }, {

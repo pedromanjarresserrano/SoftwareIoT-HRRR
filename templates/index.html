@@ -11,8 +11,52 @@
 </head>
 
 <body>
+    <div class="container">
+        <div class="row">
 
-    
+            <nav class="nav-extended  blue darken-4">
+                <div class="nav-content">
+                    <ul class="tabs tabs-transparent">
+                        <li class="tab"><a href="#test1">Medidores</a></li>
+                        <li class="tab"><a class="active" href="#test2">Sesiones</a></li>
+                        <li class="tab"><a href="#test4">Captura de sesiones</a></li>
+                    </ul>
+                </div>
+            </nav>
+
+            <div id="test1" class="col s12">Test 1</div>
+            <div id="test2" class="col s12">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Sesion id</th>
+                            <th>AVG RR</th>
+                            <th>Estado RR</th>
+                            <th>AVG HR</th>
+                            <th>SDHR</th>
+                            <th>SDRR</th>
+                            <th>Estado SDRR</th>
+                            <th>pRR50</th>
+                            <th>Estado pRR50</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="tb-sesiones">
+                        <tr>
+                            <td>Alvin</td>
+                            <td>Eclair</td>
+                            <td>$0.87</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="test3" class="col s12">Test 3</div>
+            <div id="test4" class="col s12">Test 4</div>
+
+
+        </div>
+    </div>
+
     <script src="{{ url_for('static',filename='js/jquery-3.4.1.min.js') }}"></script>
     <script src="{{ url_for('static',filename='js/materialize.min.js') }}"></script>
     <script src="{{ url_for('static',filename='js/app.js') }}"></script>
