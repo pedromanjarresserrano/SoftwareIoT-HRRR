@@ -18,7 +18,6 @@ db = MongoClient('localhost', 27017).aeropuerto
 
 @app.route("/",  methods=['GET'])
 def mainRoute():
-
     return render_template('index.html')
 
 
@@ -35,7 +34,7 @@ def sensor():
 @app.route("/api/sensor",  methods=['GET'])
 def sensorFind():
     sensor = db.sensores.find_one({
-        "_id": ObjectId(request.form["id"])
+        "_id": ObjectId(request.args.get('id'))
     })
     return dumps(sensor)
 
@@ -54,7 +53,7 @@ def sesionFindAll():
 @app.route("/api/sesion",  methods=['GET'])
 def sensioFind():
     sesion = db.sesiones.find_one({
-        "_id": ObjectId(request.form["id"])
+        "_id": ObjectId(request.args.get('id'))
     })
 
     return dumps({
@@ -148,10 +147,10 @@ def getExtras(array):
     }
 
 
-@app.route("/api/sensors/cluster",  methods=['GET'])
-def sensorGetCluster():
+@app.route("/api/sesion/cluster",  methods=['GET'])
+def sesionGetCluster():
     sesion = db.sesiones.find_one({
-        "_id": ObjectId(request.form["id"])
+        "_id": ObjectId(request.args.get('id'))
     })
     datos = sesion["datos"]
     aux = []

@@ -1,0 +1,24 @@
+#newsesionstab.tabs{
+    height: 100%;
+    flex-direction: column;
+}
+#newsesionstab>.tab.col.s3{
+    width: 100%;
+     margin-left: unset; 
+     left: unset; 
+     right: unset;
+}
+
+#newsesionstab .active{
+    background-color: rgba(22, 22, 22, 0.1);
+}
+
+
+#tab3 #newsesionstabs>.col{
+    border-left: 1px solid rgb(161, 159, 159);
+    height: 100%;
+}
+
+#tab3 #newsesionstabs>.col>*{
+    margin-left: 2px;
+}
