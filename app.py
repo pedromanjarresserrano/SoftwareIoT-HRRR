@@ -178,6 +178,14 @@ def begin():
     x.start()
     return jsonify({"session_id": str(sesion_id)})
 
+@app.route("/api/running",  methods=['GET'])
+def running():
+    running = []
+    for task in Tasking.sesioneslist:
+        running.append(task.sesion)
+    return jsonify(running)
+
+
 
 @app.route("/api/stop",  methods=['POST'])
 def stopSesion():

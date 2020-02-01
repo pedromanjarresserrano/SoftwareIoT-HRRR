@@ -16,9 +16,20 @@ $(document).ready(function () {
             loadSensores();
         })
     })
+    $.get("/api/running").then(res => {
 
-    $("#add-new-sesion").click(e => {
-        var id = getRandomId();
+        res.forEach(e => {
+            var id = getRandomId();
+            let a = addTab(id);
+            let newsesionstab = a.newsesionstab;
+            let newsesionstabs = a.newsesionstabs;
+            $(newsesionstab).tabs();
+            loadRealtime(id, e)
+
+        })
+    })
+
+    function addTab(id) {
 
         var newsesionstab = $("#newsesionstab");
         var newsesionstabs = $("#newsesionstabs");
@@ -48,9 +59,12 @@ $(document).ready(function () {
                             <label>Sensor</label>
                         </div>
                         <div class="input-field right-align col s6">
-                            <input id="iniciar-sesion right" type="submit"
+                            <input id="iniciar-sesion" type="submit"
                                 class="cyan darken-1 waves-effect waves-light btn"
                                 value="Iniciar sesion" />
+                            <input id="detener-sesion" type="button"
+                                class="purple darken-1 waves-effect waves-light btn"
+                                value="Detener sesion" />
                         </div>
                     </div>
 
@@ -89,10 +103,10 @@ $(document).ready(function () {
             </div>
             <div class="row">
                 <div class="col s12 m6">
-                    <canvas id="chart-rt-hr" width="100%" height="400px"></canvas>
+                    <canvas id="chart-rt-hr" width="100%" style="max-height:350px"></canvas>
                 </div>
                 <div class="col s12 m6">
-                    <canvas id="chart-rt-rr" width="100%" height="400px"></canvas>
+                    <canvas id="chart-rt-rr" width="100%" style="max-height:350px"></canvas>
                 </div>
             </div>
             <div class="row">
@@ -116,6 +130,13 @@ $(document).ready(function () {
             </div>
         </div>
         `)
+        return { newsesionstab, newsesionstabs }
+    }
+    $("#add-new-sesion").click(e => {
+        var id = getRandomId();
+        let a = addTab(id);
+        let newsesionstab = a.newsesionstab;
+        let newsesionstabs = a.newsesionstabs;
         $(newsesionstab).tabs();
         $.get("/api/sensors").then(res => {
             res = JSON.parse(res);
@@ -132,53 +153,63 @@ $(document).ready(function () {
 
             $.post("/api/begin", data).then(res => {
                 loadRealtime(id, res["session_id"])
+                $("#" + id).find("#detener-sesion").click(e => {
+
+                    $.post("/api/stop", { "sesion_id": res["session_id"] }).then(res => {
+                        load(id, res["session_id"])
+                    })
+                });
             })
+
+
         })
     })
 
-    function loadRealtime(id, sesion_id) {
-        setInterval((e) => {
-            $.get("/api/sesion?id=" + sesion_id).then(res => {
-                i = JSON.parse(res);
-                $("#" + id).find("#min-rr").html(i["extras"]["min"]["hr"]);
-                $("#" + id).find("#max-rr").html(i["extras"]["max"]["hr"]);
-                $("#" + id).find("#avg-rr").html(i["extras"]["promedios"]["hr"]);
-                $("#" + id).find("#status-rr").html(i["extras"]["status"]["avgrr"]);
-                $("#" + id).find("#min-hr").html(i["extras"]["min"]["rr"]);
-                $("#" + id).find("#max-hr").html(i["extras"]["max"]["rr"]);
-                $("#" + id).find("#avg-hr").html(i["extras"]["promedios"]["rr"]);
-                $("#" + id).find("#sd-hr").html(i["extras"]["stdev"]["hr"]);
-                $("#" + id).find("#sd-rr").html(i["extras"]["stdev"]["rr"]);
-                $("#" + id).find("#status-sdrr").html(i["extras"]["status"]["sdrr"]);
-                $("#" + id).find("#prr50").html(i["extras"]["prr50"]);
-                $("#" + id).find("#status-prr50").html(i["extras"]["status"]["prr50"]);
+    function load(id, sesion_id) {
+        $.get("/api/sesion?id=" + sesion_id).then(res => {
+            i = JSON.parse(res);
+            $("#" + id).find("#min-rr").html(i["extras"]["min"]["hr"]);
+            $("#" + id).find("#max-rr").html(i["extras"]["max"]["hr"]);
+            $("#" + id).find("#avg-rr").html(i["extras"]["promedios"]["hr"]);
+            $("#" + id).find("#status-rr").html(i["extras"]["status"]["avgrr"]);
+            $("#" + id).find("#min-hr").html(i["extras"]["min"]["rr"]);
+            $("#" + id).find("#max-hr").html(i["extras"]["max"]["rr"]);
+            $("#" + id).find("#avg-hr").html(i["extras"]["promedios"]["rr"]);
+            $("#" + id).find("#sd-hr").html(i["extras"]["stdev"]["hr"]);
+            $("#" + id).find("#sd-rr").html(i["extras"]["stdev"]["rr"]);
+            $("#" + id).find("#status-sdrr").html(i["extras"]["status"]["sdrr"]);
+            $("#" + id).find("#prr50").html(i["extras"]["prr50"]);
+            $("#" + id).find("#status-prr50").html(i["extras"]["status"]["prr50"]);
 
-                let charthr = $("#" + id).find("#chart-rt-hr");
-                new Chart(charthr, createConfig(i["datos"].map(e => {
-                    return { label: e["date"], data: e["HR"] }
-                })));
-                let chartrr = $("#" + id).find("#chart-rt-rr");
-                new Chart(chartrr, createConfig(i["datos"].map(e => {
-                    return { label: e["date"], data: e["RR"] }
-                })));
+            let charthr = $("#" + id).find("#chart-rt-hr");
+            new Chart(charthr, createConfig(i["datos"].map(e => {
+                return { label: e["date"], data: e["HR"] }
+            })));
+            let chartrr = $("#" + id).find("#chart-rt-rr");
+            new Chart(chartrr, createConfig(i["datos"].map(e => {
+                return { label: e["date"], data: e["RR"] }
+            })));
 
-                $.get("/api/sesion/cluster?id=" + sesion_id).then(res => {
-                    res = JSON.parse(res);
-                    let tablecentroides = $("#" + id).find("#tb-centroides");
-                    tablecentroides.empty();
-                    res.forEach((e, i) => {
-                        tablecentroides.append(`
-                        <tr>
-                            <td>${i}</td>
-                            <td>${e[0]}</td>
-                            <td>${e[1]}</td>
-                        </tr>
-                        `);
-                    })
+            $.get("/api/sesion/cluster?id=" + sesion_id).then(res => {
+                res = JSON.parse(res);
+                let tablecentroides = $("#" + id).find("#tb-centroides");
+                tablecentroides.empty();
+                res.forEach((e, i) => {
+                    tablecentroides.append(`
+                <tr>
+                    <td>${i}</td>
+                    <td>${e[0]}</td>
+                    <td>${e[1]}</td>
+                </tr>
+                `);
                 })
             })
+        })
 
-
+    }
+    function loadRealtime(id, sesion_id) {
+        setInterval((e) => {
+            load(id, sesion_id)
         }, 1000);
     }
     function createConfig(data) {
@@ -232,8 +263,80 @@ $(document).ready(function () {
                 <td>${i["extras"]["status"]["sdrr"]}</td>
                 <td>${i["extras"]["prr50"]}</td>
                 <td>${i["extras"]["status"]["prr50"]}</td>
+                <td><button id="${i["_id"]["$oid"]}" class="waves-effect waves-light btn">Ver</button></td>
             </tr>
             `);
+
+            $("#" + i["_id"]["$oid"]).click(e => {
+                var id = getRandomId();
+                let modal = $("#verSesion");
+                modal.empty()
+                modal.append(`
+                <div id="${id}" class="col s12">
+                    <h6>Sesion</h6>
+                    <div class="row">
+                        <ul id="datos" class="collection  with-header">
+                            <li class="collection-header">
+                                <h5>Datos</h5>
+                            </li>
+                            <li class="collection-item">
+                                <div class="col m6 s12">
+                                    <ul id="datos" class="collection">
+                                        <li class="collection-item">Min RR: <span id="min-rr"></span></li>
+                                        <li class="collection-item">Max RR: <span id="max-rr"></span></li>
+                                        <li class="collection-item">AVG RR: <span id="avg-rr"></span></li>
+                                        <li class="collection-item">Estado RR: <span id="status-rr"></span></li>
+                                        <li class="collection-item">Min HR: <span id="min-hr"></span></li>
+                                        <li class="collection-item">Max HR: <span id="max-hr"></span></li>
+                                    </ul>
+                                </div>
+                                <div class="col m6 s12">
+                                    <ul id="datos" class="collection">
+        
+                                        <li class="collection-item">AVG HR: <span id="avg-hr"></span></li>
+                                        <li class="collection-item">SDHR: <span id="sd-hr"></span></li>
+                                        <li class="collection-item">SDRR: <span id="sd-rr"></span></li>
+                                        <li class="collection-item">Estado SDRR <span id="status-sdrr"></span></li>
+                                        <li class="collection-item">pRR50: <span id="prr50"></span></li>
+                                        <li class="collection-item">Estado pRR50: <span id="status-prr50"></span></li>
+                                    </ul>
+                                </div>
+        
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="row">
+                        <div class="col s12 m6">
+                            <canvas id="chart-rt-hr" width="100%" style="max-height:550px"></canvas>
+                        </div>
+                        <div class="col s12 m6">
+                            <canvas id="chart-rt-rr" width="100%" style="max-height:550px"></canvas>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>X</th>
+                                    <th>Y</th>
+                                </tr>
+                            </thead>
+        
+                            <tbody id="tb-centroides">
+        
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="row">
+                        <canvas id="chart-rt-centroides" width="100%"></canvas>
+        
+                    </div>
+                </div>
+                `)
+                load(id, i["_id"]["$oid"])
+                modal.modal('open');
+            })
         });
     })
 
