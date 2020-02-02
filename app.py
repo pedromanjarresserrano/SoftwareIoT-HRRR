@@ -306,15 +306,12 @@ class Tasking:
 
 
 def terminate(t):
-    """Terminate thread.
 
-    :param threading.Thread t: thread object
-    """
     exec = ctypes.py_object(SystemExit)
     res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
         ctypes.c_long(t.ident), exec)
     if res == 0:
-        print("thread not found!")
+        print("Not found!")
     elif res > 1:
         ctypes.pythonapi.PyThreadState_SetAsyncExc(
             ctypes.c_long(t.ident), None)
