@@ -15,7 +15,7 @@ app = Flask(__name__)
 app.config["MONGO_URI"] = "mongodb://localhost:27017/aeropuerto"
 db = MongoClient('localhost', 27017).aeropuerto
 
-
+ser = {}
 @app.route("/",  methods=['GET'])
 def mainRoute():
     return render_template('index.html')
@@ -67,84 +67,97 @@ def sensioFind():
 
 
 def getExtras(array):
-    counta = len(array)
-    hr = 0
-    rr = 0
-    maxhr = 0
-    maxrr = 0
+    arrayhr = array["HR"]
+    arrayrr = array["RR"]
+    counthr = len(arrayhr)
+    countrr = len(arrayrr)
+    if countrr > 0 and counthr > 0:
+        hr = 0
+        rr = 0
+        maxhr = 0
+        maxrr = 0
 
-    minhr = array[0]["HR"]
-    minrr = array[0]["RR"]
+        minhr = arrayhr[0]["HR"]
+        minrr = arrayrr[0]["RR"]
 
-    auxhr = []
-    auxrr = []
+        auxhr = []
+        auxrr = []
 
-    count50 = 0
+        count50 = 0
 
-    statusrr = "LOW"
-    statussdrr = "LOW"
-    statusprr50 = "LOW"
+        statusrr = "LOW"
+        statussdrr = "LOW"
+        statusprr50 = "LOW"
 
-    for x in range(counta):
+        for x in range(counthr):
+            value = arrayhr[x]["HR"]
+            auxhr.append(value)
+            hr += value
+            if maxhr < value:
+                maxhr = value
+            if minhr > value:
+                minhr = value
 
-        auxhr.append(array[x]["HR"])
-        auxrr.append(array[x]["RR"])
-        hr += array[x]["HR"]
-        rr += array[x]["RR"]
+        for x in range(countrr):
+            value = arrayrr[x]["RR"]
+            auxrr.append(value)
+            rr += value
 
-        if maxhr < array[x]["HR"]:
-            maxhr = array[x]["HR"]
+            if maxrr < value:
+                maxrr = value
 
-        if maxrr < array[x]["RR"]:
-            maxrr = array[x]["RR"]
+            if minrr > value:
+                minrr = value
 
-        if minhr > array[x]["HR"]:
-            minhr = array[x]["HR"]
+            if x < countrr-1 and (arrayrr[x+1]["RR"] - value) > 50:
+                count50 += 1
 
-        if minrr > array[x]["RR"]:
-            minrr = array[x]["RR"]
+        avghr = hr/counthr
+        avgrr = rr/countrr
+        prr50 = (count50*100)/(countrr-1)
 
-        if x < counta-1 and (array[x+1]["RR"] - array[x]["RR"]) > 50:
-            count50 += 1
+        stdevrr = statistics.stdev(auxrr)
 
-    avghr = hr/counta
-    avgrr = rr/counta
-    prr50 = (count50*100)/(counta-1)
+        if avgrr < 750:
+            statusrr = "HIGH"
 
-    stdevrr = statistics.stdev(auxrr)
+        if avgrr >= 750 and avgrr <= 900:
+            statusrr = "HIGH"
 
-    if avgrr < 750:
-        statusrr = "HIGH"
+        if stdevrr < 50:
+            statusrr = "HIGH"
 
-    if avgrr >= 750 and avgrr <= 900:
-        statusrr = "HIGH"
+        if stdevrr >= 50 and avgrr <= 100:
+            statusrr = "MODERATE"
 
-    if stdevrr < 50:
-        statusrr = "HIGH"
 
-    if stdevrr >= 50 and avgrr <= 100:
-        statusrr = "MODERATE"
+        if prr50 < 3:
+            statusprr50 = "HIGH"
 
-    return {
-        "promedios": {"hr": avghr,
-                      "rr": avgrr},
-        "max": {
-            "hr": maxhr,
-            "rr": maxrr},
-        "min": {
-            "hr": minhr,
-            "rr": minrr},
-        "stdev": {
-            "hr": statistics.stdev(auxhr),
-            "rr": stdevrr
-        },
-        "prr50": prr50,
-        "status": {
-            "avgrr": statusrr,
-            "sdrr": statussdrr,
-            "prr50": statusprr50
-        }
-    }
+
+
+        return {
+                "promedios": {"hr": avghr,
+                            "rr": avgrr},
+                "max": {
+                    "hr": maxhr,
+                    "rr": maxrr},
+                "min": {
+                    "hr": minhr,
+                    "rr": minrr},
+                "stdev": {
+                    "hr": statistics.stdev(auxhr) if len(auxhr) > 1  else 0,
+                    "rr": stdevrr
+                },
+                "prr50": prr50,
+                "status": {
+                    "avgrr": statusrr,
+                    "sdrr": statussdrr,
+                    "prr50": statusprr50
+                }
+            }
+    else:
+        return {}
 
 
 @app.route("/api/sesion/cluster",  methods=['GET'])
@@ -152,10 +165,10 @@ def sesionGetCluster():
     sesion = db.sesiones.find_one({
         "_id": ObjectId(request.args.get('id'))
     })
-    datos = sesion["datos"]
+    datos = sesion["datos"]["RR"]
     aux = []
     for d in datos:
-        aux.append([d["HR"], d["RR"]])
+        aux.append([d["RR"], d["date"]])
     kmeans = KMeans(n_clusters=2)
     kmeans.fit(aux)
     return dumps(kmeans.cluster_centers_)
@@ -163,19 +176,22 @@ def sesionGetCluster():
 
 @app.route("/api/begin",  methods=['POST'])
 def begin():
+    global ser
     sesion_id = str(db.sesiones.insert_one({
         "nombre": request.form["nombre"],
         "descripcion": request.form["descripcion"],
         "sensor_id": request.form["sensor_id"],
-        "datos": []
+        "datos": {
+            "HR":[],
+            "RR":[]
+        }
     }).inserted_id)
     sensores = db.sensores
     sensor = sensores.find_one({"_id": ObjectId(request.form["sensor_id"])})
     x = threading.Thread(target=beginSessionCapture,
                          args=(sesion_id, sensor["puerto"],))
-
-    Tasking.sesioneslist.append(Tasking(sesion_id, x))
     x.start()
+    Tasking.sesioneslist.append(Tasking(sesion_id, x, ser))
     return jsonify({"session_id": str(sesion_id)})
 
 @app.route("/api/running",  methods=['GET'])
@@ -190,8 +206,10 @@ def running():
 @app.route("/api/stop",  methods=['POST'])
 def stopSesion():
     sesion_id = request.form["sesion_id"]
+    aux ={}
     for task in Tasking.sesioneslist:
         if task.sesion == sesion_id:
+            aux = task
             task.stop()
             sesion = db.sesiones.find_one({
                 "_id": ObjectId(sesion_id)
@@ -204,36 +222,83 @@ def stopSesion():
                     "extras": getExtras(sesion["datos"])
                 }
             })
-
+    Tasking.sesioneslist.remove(aux)
     return jsonify({"session_id": str(sesion_id)})
 
 
 def beginSessionCapture(sesion_id, port):
-    # ser = serial.Serial(port, 9600)
+    global ser
+    ser = serial.Serial(port, 9600)
     sesiones = db.sesiones
     while True:
         print("READING " + str(port))
+        line = ser.readline() 
+       	print ("line es",line)
         sesion = sesiones.find_one({
             "_id": ObjectId(sesion_id)
         })
-        sesion["datos"].append(
-            {"HR": 1000, "RR": 200, "date": datetime.timestamp(datetime.now())})
+        sesion["datos"]["RR"].append(
+            {"RR": float(line.decode()), "date": datetime.timestamp(datetime.now())})
+        one = 60000
+        count = 0
+        hr = []
+        timecount = 1
+        array = sesion["datos"]["RR"]
+        countlen = len(array)
+        aux = []
+        value = 0
+        for x in range(countlen):
+            value +=  array[x]["RR"]
+            if value <= one :
+                count += 1
+                aux.append({"HR": count, "time": timecount})
+            else:
+                count +=1
+                one += 60000
+                aux.append({"HR": count, "time": timecount})
+                count = 1
+                timecount += 1
+
+        for x in range(timecount):
+            aux1 = filtra(x+1, aux)
+            maxval = maximo(aux1)
+            hr.append({"HR": maxval, "time": x+1})  
+
+
+        sesion["datos"]["HR"] = hr
+
         sesiones.update_one({
             "_id": ObjectId(sesion_id)
         }, {
             "$set": sesion
         })
         time.sleep(1)
-    # ser.close()
 
+
+def filtra(times , lista):
+    aux = []
+
+    for x in lista:
+        if x["time"] == times:
+            aux.append(x)
+    return aux
+    
+def maximo(array):
+    maximo = 0
+    for x in array:
+        if x["HR"] > maximo:
+            maximo = x["HR"]
+
+    return maximo
 
 class Tasking:
 
     sesioneslist = []
 
-    def __init__(self, sesion_id, thread):
+    def __init__(self, sesion_id, thread, serial):
         self.sesion = sesion_id
         self.thread = thread
+        self.serial = serial
 
     def stop(self):
         print("Killing")
