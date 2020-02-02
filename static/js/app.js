@@ -344,13 +344,13 @@ $(document).ready(function () {
                 table.append(`
             <tr>
                 <td>${i["_id"]["$oid"]}</td>
-                <td>${parseFloat(i["extras"]["min"]["hr"]).toFixed(2)}</td>
-                <td>${parseFloat(i["extras"]["max"]["hr"]).toFixed(2)}</td>
-                <td>${parseFloat(i["extras"]["promedios"]["hr"]).toFixed(2)}</td>
-                <td>${i["extras"]["status"]["avgrr"]}</td>
                 <td>${parseFloat(i["extras"]["min"]["rr"]).toFixed(2)}</td>
                 <td>${parseFloat(i["extras"]["max"]["rr"]).toFixed(2)}</td>
                 <td>${parseFloat(i["extras"]["promedios"]["rr"]).toFixed(2)}</td>
+                <td>${i["extras"]["status"]["avgrr"]}</td>
+                <td>${parseFloat(i["extras"]["min"]["hr"]).toFixed(2)}</td>
+                <td>${parseFloat(i["extras"]["max"]["hr"]).toFixed(2)}</td>
+                <td>${parseFloat(i["extras"]["promedios"]["hr"]).toFixed(2)}</td>
                 <td>${parseFloat(i["extras"]["stdev"]["hr"]).toFixed(2)}</td>
                 <td>${parseFloat(i["extras"]["stdev"]["rr"]).toFixed(2)}</td>
                 <td>${i["extras"]["status"]["sdrr"]}</td>

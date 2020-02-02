@@ -12,8 +12,8 @@ from sklearn.cluster import KMeans
 import statistics
 
 app = Flask(__name__)
-app.config["MONGO_URI"] = "mongodb://localhost:27017/aeropuerto"
-db = MongoClient('localhost', 27017).aeropuerto
+app.config["MONGO_URI"] = "mongodb://localhost:27017/hospital"
+db = MongoClient('localhost', 27017).hospital
 
 ser = {}
 @app.route("/",  methods=['GET'])
@@ -122,7 +122,7 @@ def getExtras(array):
             statusrr = "HIGH"
 
         if avgrr >= 750 and avgrr <= 900:
-            statusrr = "HIGH"
+            statusrr = "MODERATE"
 
         if stdevrr < 50:
             statusrr = "HIGH"
